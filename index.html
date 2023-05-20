@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Proiect Godja Vasile</title>
+    <script id="jsonLdScript" type="application/ld+json"></script>
+</head>
+<body>
+      <div style="display: flex;">
+        <div style="flex: 1;">
+        <button id="displayData">Scrape Data</button>
+          <table id="dataTable">
+            <thead>
+              <tr>
+                <th>Judet</th>
+                <th>Populatie</th>
+              </tr>
+            </thead>
+            <tbody>
+            </tbody>
+          </table>
+        </div>
+        <div style="flex: 1;">
+        <button id="fetchDataButton">Scrape LD Data</button>
+        <input type="text" id="movieUrl" placeholder="Enter IMDb movie URL">
+        <div id="ldTable">
+        </div>
+        </div>
+      </div>
+
+<!------------------------------------------------------------------------------------------------------------------>
+     <form id="jsonForm">
+        <label for="judet">Judet:</label><br>
+        <input type="text" id="judet" name="judet"><br>
+        <label for="populatie">Populatie:</label><br>
+        <input type="text" id="populatie" name="populatie"><br>
+        <input type="submit" value="INSETT & SELECT JsonServer">
+    </form>
+    <table id="jsonTable">
+        <thead>
+            <tr>
+                <th>Judet</th>
+                <th>Populatie</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+<!------------------------------------------------------------------------------------------------------------------>
+<button id="insertRdf">INSETT & SELECT RDF4JServer</button>
+<table id="rdfTable">
+    <thead>
+        <tr>
+            <th>Judet</th>
+            <th>Populatie</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+<!------------------------------------------------------------------------------------------------------------------>
+<form id="deleteForm">
+    <label for="stergeJudet">Delete by Judet:</label><br>
+    <input type="text" id="stergeJudet" name="stergeJudet"><br>
+    <button id="deleteRdf">DELETE RDF4J</button>
+</form>
+<table id="rdfTable2">
+    <thead>
+        <tr>
+            <th>Judet</th>
+            <th>Populatie</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<!------------------------------------------------------------------------------------------------------------------>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script>
+    $(document).ready(function() {
+        $('#displayData').click(async () => await afiseazaData());
+        $('#fetchDataButton').click(async () => await afiseazaDataLd());
+        $('#jsonForm').submit(async function(event) {
+            event.preventDefault();
+            await insereazaJson();
+        });
+        $('#insertRdf').click(async function() {
+            await inserareRdf();
+            await interogareRdf('rdfTable');
+            await creazaJsonLd();
+        });
+        $('#deleteForm').submit(async function(event) {
+            event.preventDefault();
+            await stergereRdf();
+            await interogareRdf('rdfTable2');
+            await creazaJsonLd();
+        });
+    });
+    
+    async function afiseazaData() {
+        try {
+            let data = await $.ajax({
+                url: 'scraper.php',
+                type: 'GET'
+            });
+            let parsedData = JSON.parse(data);
+            let tableBody = $('#dataTable tbody');
+            tableBody.empty();
+            parsedData.forEach(function(row) {
+                let rowHTML = `<tr><td>${row.judet}</td><td>${row.populatie}</td></tr>`;
+                tableBody.append(rowHTML);
+            });
+        } catch(error) {
+            console.log('Error fetching data');
+        }
+    }
+    
+    async function insereazaJson() {
+        var parsedData = [];
+        $("#dataTable tbody tr").each(function() {
+            var judet = $(this).find("td").eq(0).text();
+            var populatie = $(this).find("td").eq(1).text();
+            parsedData.push({ judet: judet, populatie: populatie });
+        });
+        var judet = $('#judet').val();
+        var populatie = $('#populatie').val();
+        if (judet !== '' && populatie !== '') {
+            parsedData.push({ judet: judet, populatie: populatie });
+        }
+        try {
+            let response = await $.ajax({
+                url: 'insertJson.php',
+                type: 'POST',
+                data: { data: parsedData }
+            });
+            console.log(response);
+            await afiseazaJson();
+        } catch(error) {
+            console.log('Error inserting data');
+        }
+    }
+    
+    async function afiseazaJson() {
+        try {
+            let data = await $.ajax({
+                url: 'interogateJson.php',
+                type: 'GET'
+            });
+            var jsonData = JSON.parse(data);
+            var table = $('#jsonTable tbody');
+            table.empty();
+            jsonData.forEach(function(item) {
+                var rowHTML = `<tr><td>${item.judet}</td><td>${item.populatie}</td></tr>`;
+                table.append(rowHTML);
+            });
+        } catch(error) {
+            console.log('Error fetching data');
+        }
+    }
+    
+    async function inserareRdf() {
+        var query = `PREFIX : <http://vosi.ro#> 
+                     PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+                     INSERT DATA {GRAPH :judete {`;
+        $("#jsonTable tbody tr").each(function() {
+            var cells = $(this).find("td");
+            var judet = encodeURIComponent(cells.eq(0).text());
+            var populatie = encodeURIComponent(cells.eq(1).text());
+            var label = judet;
+            query += `:${judet} :hasPopulation ${populatie}; rdfs:label "${label}". `;
+        });
+        query += "}}";
+        try {
+            return await $.ajax({
+                url: 'insertRdf.php',
+                type: 'POST',
+                data: {query: query}
+            });
+        } catch(error) {
+            console.log('Error inserting data');
+        }
+    }
+    
+    async function interogareRdf(tableId) {
+        try {
+            let data = await $.ajax({
+                url: 'interogateRdf.php',
+                type: 'GET',
+                dataType: 'json'
+            });
+            $("#" + tableId + " tbody").empty();
+            $.each(data, function(i, item) {
+                var row = $('<tr>');
+                row.append($('<td>').text(item.judet));
+                row.append($('<td>').text(item.populatie));
+                $("#" + tableId + " tbody").append(row);
+            });
+        } catch(error) {
+            console.log('Error fetching data');
+        }
+    }
+    
+    async function creazaJsonLd() {
+        try {
+            let data = await $.ajax({
+                url: 'interogateRdfLd.php', 
+                type: 'GET',
+                dataType: 'json'
+            });
+            var scriptTag = document.getElementById('jsonLdScript');
+            scriptTag.innerHTML = JSON.stringify(data);
+        } catch(error) {
+            console.log('Error fetching JSON-LD data');
+        }
+    }
+    
+    async function stergereRdf() {
+        var judet = encodeURIComponent($('#stergeJudet').val());
+        var query = `prefix : <http://vosi.ro#> DELETE WHERE {GRAPH :judete {:${judet} ?y ?z}}`;
+        try {
+            return await $.ajax({
+                url: 'deleteRdf.php',
+                type: 'POST',
+                data: {query: query}
+            });
+        } catch(error) {
+            console.log('Error deleting data');
+        }
+    }
+</script>
+</body>
+</html>

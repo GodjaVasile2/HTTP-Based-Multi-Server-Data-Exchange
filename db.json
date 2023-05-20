@@ -1,0 +1,29 @@
+{
+  "judete": [
+    {
+      "judet": "Vaslui",
+      "populatie": "395499",
+      "id": 1
+    },
+    {
+      "judet": "Alba",
+      "populatie": "342376",
+      "id": 2
+    },
+    {
+      "judet": "Arad",
+      "populatie": "430629",
+      "id": 3
+    },
+    {
+      "judet": "Arges",
+      "populatie": "612431",
+      "id": 4
+    },
+    {
+      "judet": "Maramures",
+      "populatie": "200000",
+      "id": 5
+    }
+  ]
+}
